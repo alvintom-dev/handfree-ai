@@ -34,7 +34,20 @@
 
 ## 🚀 Quick start
 
-You need macOS, [Homebrew](https://brew.sh), and [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) logged in with a claude.ai account.
+### What you need
+
+| | Supported |
+|---|---|
+| 💻 **Mac** | macOS with [Homebrew](https://brew.sh). Apple Silicon gets the natural Qwen3 voice; Intel Macs use Kokoro |
+| 🤖 **Claude Code** | [v2.1.80 or newer](https://docs.claude.com/en/docs/claude-code/setup), logged in with a claude.ai account (channels are a preview feature) |
+| 📱 **Phone** | Android, optional. No iPhone app yet |
+| 🧠 **Memory** | 16 GB recommended: voice uses about 4 GB while it's on |
+| 💾 **Disk** | about 5 GB for the speech models and packages |
+| ✅ **Tested on** | Apple Silicon (M4) with macOS 26 |
+
+Tools the first command installs: **bun** runs the daemon, **uv** the Python speech sidecar, **ffmpeg** handles audio, **openssl** makes the phone's TLS certificate, and **tmux** runs sessions started from the phone.
+
+### Three commands
 
 ```sh
 brew install oven-sh/bun/bun uv ffmpeg openssl tmux     # 1. tools
