@@ -1,0 +1,99 @@
+#!/usr/bin/env zsh
+# Start Claude Code with the handfree channel loaded, in the current directory.
+# Usage: claude-voice [--which-claude=<profile>] [extra claude flags, e.g. --continue or --permission-mode auto]
+# (flags only: a bare prompt argument would be swallowed by the list-style flags below)
+#
+#   --which-claude=default    use the default ~/.claude profile
+#   --which-claude=<name>     use ~/.claude-<name>, e.g. personal for ~/.claude-personal
+#                             (claude-<name> is accepted too)
+#   omitted                   keep whatever CLAUDE_CONFIG_DIR the current shell has
+#   --no-browser              don't open the voice page (it opens only if none is open)
+#   --no-voice                leave voice as it is (sessions started from the phone use this)
+#
+# Starts the handfree daemon first if it isn't running (voice page: http://127.0.0.1:8790),
+# and turns voice on: starting from the terminal means you're about to talk.
+# Custom channels are not on the research-preview allowlist, so they load via
+# --dangerously-load-development-channels, which shows a warning dialog at each
+# launch. The MCP config and hook are passed per session, so other Claude
+# sessions are untouched.
+
+set -euo pipefail
+
+ROOT=${0:A:h:h}
+BUN=$(command -v bun) || { echo "claude-voice: bun not found in PATH" >&2; exit 1; }
+
+# --- pick the Claude profile ----------------------------------------------------
+profile=""
+no_browser=0
+no_voice=0
+args=()
+while (( $# )); do
+  case "$1" in
+    --which-claude=*) profile=${1#*=} ;;
+    --no-browser)     no_browser=1 ;;
+    --no-voice)       no_voice=1 ;;
+    --which-claude)   (( $# >= 2 )) || { echo "claude-voice: --which-claude needs a value" >&2; exit 1; }
+                      profile=$2; shift ;;
+    *)                args+=("$1") ;;
+  esac
+  shift
+done
+
+if [[ -n "$profile" ]]; then
+  name=${profile#claude-}
+  case "$name" in
+    default) unset CLAUDE_CONFIG_DIR ;;
+    *)
+      dir="$HOME/.claude-$name"
+      [[ -d "$dir" ]] || { echo "claude-voice: no profile directory $dir" >&2; exit 1; }
+      export CLAUDE_CONFIG_DIR="$dir"
+      ;;
+  esac
+fi
+
+[[ -d "$ROOT/daemon/node_modules" && -d "$ROOT/channel/node_modules" && -d "$ROOT/speech/.venv" ]] || {
+  echo "handfree: first run, running setup…" >&2
+  "$ROOT/scripts/setup"
+}
+
+# --- daemon ------------------------------------------------------------------------
+"$BUN" "$ROOT/daemon/src/cli.ts" ensure
+(( no_voice )) || "$BUN" "$ROOT/daemon/src/cli.ts" voice on || true
+# the voice page, in the background so the terminal keeps focus for the warning prompt
+(( no_browser )) || { "$BUN" "$ROOT/daemon/src/cli.ts" open &>/dev/null &! }
+
+MCP_CONFIG=$(printf '{"mcpServers":{"handfree":{"command":"%s","args":["%s"]}}}' "$BUN" "$ROOT/channel/handfree-channel.ts")
+# Stop and StopFailure (a turn ended by an API error) run in the foreground (the
+# spoken fallback needs them); the activity hooks
+# for the live status panel run async, so they never slow Claude down.
+HOOK=$(printf '{"type":"command","command":"\\"%s\\" \\"%s\\"","timeout":10}' "$BUN" "$ROOT/daemon/src/hook.ts")
+ASYNC_HOOK="${HOOK%\}},\"async\":true}"
+SETTINGS="{\"hooks\":{\"Stop\":[{\"hooks\":[$HOOK]}],\"StopFailure\":[{\"hooks\":[$HOOK]}]"
+for ev in UserPromptSubmit PreToolUse PostToolUse PostToolUseFailure; do
+  SETTINGS+=",\"$ev\":[{\"hooks\":[$ASYNC_HOOK]}]"
+done
+SETTINGS+="}}"
+
+echo "handfree: profile ${CLAUDE_CONFIG_DIR:-$HOME/.claude (default)}" >&2
+
+# the shim tells the daemon how this session was started, so the phone can start
+# the next one in this folder the same way (minus --continue / --resume)
+launch=()
+after_resume=0
+for a in "${args[@]}"; do
+  # --resume takes an optional session id; an id never starts with -
+  if (( after_resume )); then after_resume=0; [[ "$a" == -* ]] || continue; fi
+  case "$a" in
+    --continue|-c|--resume=*) ;;
+    --resume|-r) after_resume=1 ;;
+    *) launch+=("$a") ;;
+  esac
+done
+export HANDFREE_LAUNCH_ARGS="${(pj:\n:)launch}"
+
+exec claude \
+  --mcp-config "$MCP_CONFIG" \
+  --settings "$SETTINGS" \
+  --dangerously-load-development-channels server:handfree \
+  --allowedTools "mcp__handfree__reply,mcp__handfree__show,mcp__handfree__picture" \
+  "${args[@]}"

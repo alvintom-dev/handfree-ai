@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+.venv/
+__pycache__/
+daemon/public/vendor/
+
+# a real WhatsApp allow list stays in ~/.handfree; never commit a copy
+whatsapp.json

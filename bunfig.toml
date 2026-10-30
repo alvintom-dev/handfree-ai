@@ -1,0 +1,4 @@
+# `bun test` from the repo root runs every package's tests in one process: point
+# them all at a temp home first, so none of them touches the real daemon (~/.handfree).
+[test]
+preload = ["./daemon/test/setup.ts"]

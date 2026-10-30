@@ -1,0 +1,4 @@
+{
+  "_note": "The chats the WhatsApp reader may see; empty means none. The real list lives in ~/.handfree/whatsapp.json: copy this file there, or run: uv run --project whatsapp whatsapp/server.py allow \"<chat name or phone number>\"",
+  "allowed_chats": []
+}

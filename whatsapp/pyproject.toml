@@ -1,0 +1,11 @@
+[project]
+name = "handfree-whatsapp"
+version = "0.1.0"
+description = "Read-only WhatsApp MCP server over the WhatsApp Mac app's local database"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "mcp>=1.2,<2",  # v2 renamed FastMCP
+  "pillow",
+  "numpy",
+  "pywhispercpp>=1.3",  # voice notes, with the model Handfree already downloaded
+]

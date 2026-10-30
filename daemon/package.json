@@ -1,0 +1,21 @@
+{
+  "name": "handfree-daemon",
+  "module": "src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/main.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/qrcode": "^1.5.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "zod": "^4.6.7"
+  }
+}

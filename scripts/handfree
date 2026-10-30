@@ -1,0 +1,3 @@
+#!/usr/bin/env zsh
+# handfree CLI: ensure | status | open | set-passphrase | pair | devices | revoke <id> | voice on|off | autostart on|off|status | stop
+exec bun "${0:A:h:h}/daemon/src/cli.ts" "$@"

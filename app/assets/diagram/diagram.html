@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- Draws one mermaid diagram for the phone app (lib/diagram_view.dart). Same look as
+     the web page (daemon/public/index.html, .diagram). mermaid.min.js is a copy of
+     daemon/public/vendor/mermaid.min.js. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=8">
+<style>
+  :root { --bg: #f7f7f5; --fg: #1c1917; --muted: #78716c; --card: #fff; --line: #e7e5e4;
+    --accent: #2563eb; --accent-soft: #dbeafe; --warn: #b45309; --warn-soft: #fef3c7;
+    --good: #15803d; --bad: #b91c1c; --good-soft: #dcfce7; --bad-soft: #fee2e2; }
+  :root.dark { --bg: #161412; --fg: #f5f5f4; --muted: #a8a29e; --card: #23201d; --line: #3a3531;
+    --accent: #60a5fa; --accent-soft: #1e3a5f; --warn: #fbbf24; --warn-soft: #3d2e0a;
+    --good: #4ade80; --bad: #f87171; --good-soft: #14321f; --bad-soft: #3b1515; }
+  html, body { margin: 0; background: transparent; color: var(--fg); font: 14px/1.4 sans-serif; }
+  #out { padding: 6px 4px; text-align: center; }
+  #out svg { max-width: 100%; height: auto; }
+  .node rect, .node polygon, .node circle, .node path { fill: var(--card) !important; stroke: var(--accent) !important; stroke-width: 1.5px !important; }
+  .node rect { rx: 8px; ry: 8px; }
+  .node polygon { fill: var(--warn-soft) !important; stroke: var(--warn) !important; }
+  .node.hi rect, .node.hi polygon, .node.hi circle { fill: var(--accent-soft) !important; stroke: var(--accent) !important; }
+  .node.ok rect, .node.ok polygon, .node.ok circle { fill: var(--good-soft) !important; stroke: var(--good) !important; }
+  .node.warn rect, .node.warn polygon, .node.warn circle { fill: var(--warn-soft) !important; stroke: var(--warn) !important; }
+  .node.bad rect, .node.bad polygon, .node.bad circle { fill: var(--bad-soft) !important; stroke: var(--bad) !important; }
+  .nodeLabel { color: var(--fg) !important; }
+  .edgeLabel, .edgeLabel p, .labelBkg { background: var(--bg) !important; font-size: 12px; color: var(--muted) !important; }
+  .flowchart-link { stroke: var(--muted) !important; stroke-width: 1.5px !important; }
+</style>
+<script src="mermaid.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+  // Flowcharts get the style classes without having to declare them (as in blocks.js)
+  const FLOW_CLASSES = '\n  classDef hi stroke-width:2px\n  classDef ok stroke-width:2px\n  classDef warn stroke-width:2px\n  classDef bad stroke-width:2px'
+  const tell = msg => Handfree.postMessage(JSON.stringify(msg))
+
+  // Called by the app: the diagram source, dark mode, and whether to stand a
+  // left-to-right flowchart upright so it fits a narrow screen.
+  async function draw(src, dark, upright) {
+    try {
+      document.documentElement.classList.toggle('dark', dark)
+      const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim()
+      const flow = /^\s*(flowchart|graph)\b/.test(src)
+      if (flow && upright) src = src.replace(/^(\s*(?:flowchart|graph))\s+(LR|RL)\b/, '$1 TD')
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: 'strict',
+        theme: 'base',
+        fontFamily: 'sans-serif',
+        themeVariables: {
+          darkMode: dark,
+          background: css('--bg'), primaryColor: css('--card'), primaryBorderColor: css('--line'), primaryTextColor: css('--fg'),
+          lineColor: css('--muted'), textColor: css('--fg'), secondaryColor: css('--accent-soft'), tertiaryColor: css('--bg'),
+          actorBkg: css('--accent-soft'), actorBorder: css('--accent'), actorTextColor: css('--fg'),
+          signalColor: css('--muted'), signalTextColor: css('--fg'), noteBkgColor: css('--warn-soft'), noteTextColor: css('--fg'),
+          edgeLabelBackground: css('--bg'), fontSize: '14px',
+        },
+        flowchart: { curve: 'basis', padding: 14 },
+      })
+      const { svg } = await mermaid.render('d' + Date.now(), src.trimEnd() + (flow ? FLOW_CLASSES : ''))
+      const out = document.getElementById('out')
+      out.innerHTML = svg
+      requestAnimationFrame(() => tell({ height: Math.ceil(out.getBoundingClientRect().height) }))
+    } catch (e) {
+      tell({ error: String((e && e.message) || e).split('\n')[0] })
+    }
+  }
+</script>
+</body>
+</html>
